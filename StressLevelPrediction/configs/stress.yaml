@@ -20,7 +20,7 @@ trainer:
         save_top_k: 1
         verbose: true
         save_on_train_epoch_end: false
-    - class_path: Classification.callbacks.ONNXExportCallback
+    - class_path: cph_classification.classification.callbacks.ONNXExportCallback
       init_args:
         output_dir: "StressLevelPrediction/models"
         model_name: "stress_level_model"
@@ -43,7 +43,7 @@ trainer:
   default_root_dir: "StressLevelPrediction/lightning_logs/StressLevelTraining"
 
 model:
-  class_path: Classification.modelmodule.ModelModuleCLS
+  class_path: cph_classification.classification.modelmodule.ModelModuleCLS
   init_args:
     lr: 0.0001
     weight_decay: 0.0
@@ -52,7 +52,7 @@ model:
     save_dir: "StressLevelPrediction/models"
     name: "stress_level_model"
     model:
-      class_path: Classification.modelfactory.ClassificationModel
+      class_path: cph_classification.classification.modelfactory.ClassificationModel
       init_args:
         input_dim: 0  # Auto-set from datamodule via CLI linking
         num_classes: 0  # Auto-set from datamodule via CLI linking
@@ -74,7 +74,7 @@ lr_scheduler:
     total_steps: 1000
 
 data:
-  class_path: Classification.datamodule.DataModuleCLS
+  class_path: cph_classification.classification.datamodule.DataModuleCLS
   init_args:
     csv_path: "StressLevelPrediction/data/stress_level.csv"
     batch_size: 256

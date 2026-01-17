@@ -23,8 +23,9 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] in ['fit', 'test', 'predict', 'validate']:
         # Standard Lightning CLI with subcommand
         cli = CLSLightningCLI()
-    elif '--config' in sys.argv:
+    elif len(sys.argv) > 1 and ('--config' in sys.argv or sys.argv[1] == '--config'):
         # No subcommand but --config provided, run fit+test workflow
+        # Note: Lightning CLI will automatically parse --config from sys.argv
         fit_test_main()
     else:
         # No arguments or unrecognized - use standard CLI (will show help)
