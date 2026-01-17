@@ -1,0 +1,106 @@
+# Stress Level Prediction Model Configuration
+# lightning.pytorch==2.1.0
+seed_everything: true
+
+trainer:
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        filename: "{epoch}-{val_loss:.2f}.best"
+        monitor: "val_loss"
+        mode: "min"
+        save_top_k: 1
+        verbose: true
+        save_on_train_epoch_end: false
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        filename: "{epoch}.last"
+        monitor: "step"
+        mode: "max"
+        save_top_k: 1
+        verbose: true
+        save_on_train_epoch_end: false
+    - class_path: Classification.callbacks.ONNXExportCallback
+      init_args:
+        output_dir: "StressLevelPrediction/models"
+        model_name: "stress_level_model"
+        input_dim: null  # Will be auto-detected from datamodule
+
+  logger:
+    class_path: lightning.pytorch.loggers.TensorBoardLogger
+    init_args:
+      save_dir: "StressLevelPrediction/lightning_logs"
+      name: "StressLevelTraining"
+      default_hp_metric: false
+
+  max_epochs: 30
+  num_sanity_val_steps: 1
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 10
+  accelerator: auto
+  devices: auto
+  precision: 16-mixed
+  default_root_dir: "StressLevelPrediction/lightning_logs/StressLevelTraining"
+
+model:
+  class_path: Classification.modelmodule.ModelModuleCLS
+  init_args:
+    lr: 0.0001
+    weight_decay: 0.0
+    lr_scheduler_factor: 0.5
+    lr_scheduler_patience: 5
+    save_dir: "StressLevelPrediction/models"
+    name: "stress_level_model"
+    model:
+      class_path: Classification.modelfactory.ClassificationModel
+      init_args:
+        input_dim: 0  # Auto-set from datamodule via CLI linking
+        num_classes: 0  # Auto-set from datamodule via CLI linking
+        hidden_layers: [128, 64, 32]
+        dropout_rates: [0.15, 0.1, 0.05]
+        activation: "relu"
+
+optimizer: 
+  class_path: torch.optim.Adam
+  init_args:
+    lr: 0.001
+    weight_decay: 0.00001
+
+lr_scheduler:
+  class_path: torch.optim.lr_scheduler.OneCycleLR
+  init_args:
+    max_lr: 0.001
+    pct_start: 0.1
+    total_steps: 1000
+
+data:
+  class_path: Classification.datamodule.DataModuleCLS
+  init_args:
+    csv_path: "StressLevelPrediction/data/stress_level.csv"
+    batch_size: 256
+    num_workers: 0
+    val_split: 0.2
+    random_seed: 42
+    categorical_cols:
+      - Work_From
+      - Work_Life_Balance
+      - Lives_With_Family
+      - Working_State
+    numeric_cols:
+      - Avg_Working_Hours_Per_Day
+      - Work_Pressure
+      - Manager_Support
+      - Sleeping_Habit
+      - Exercise_Habit
+      - Job_Satisfaction
+      - Social_Person
+    target_col: "Stress_Level"
+    save_preprocessor: true
+    preprocessor_path: "StressLevelPrediction/models/preprocessor.joblib"
+
+fit:
+  ckpt_path: null   # for resume training
+
+test:
+  ckpt_path: best   # checkpoint to use for test and predict
+

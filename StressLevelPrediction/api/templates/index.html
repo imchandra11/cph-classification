@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    {% if error %}
+    <div class="alert alert-error">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+    
+    {% if prediction %}
+    <div class="prediction-result">
+        <h2>Prediction Result</h2>
+        <div class="result-card">
+            <div class="result-main">
+                <div class="stress-level stress-level-{{ prediction.stress_level }}">
+                    <span class="level-number">{{ prediction.stress_level }}</span>
+                    <span class="level-label">{{ prediction.stress_label }}</span>
+                </div>
+                <div class="confidence">
+                    Confidence: <strong>{{ "%.1f"|format(prediction.confidence * 100) }}%</strong>
+                </div>
+            </div>
+            
+            <div class="probabilities-section">
+                <h3>Probability Distribution</h3>
+                {% for prob in prediction.all_probabilities %}
+                <div class="prob-item">
+                    <div class="prob-label">
+                        <span><strong>Level {{ prob.level }}:</strong> {{ prob.label }}</span>
+                        <span class="prob-value">{{ "%.1f"|format(prob.probability * 100) }}%</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" 
+                             style="width: {{ prob.probability * 100 }}%"
+                             data-level="{{ prob.level }}">
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="form-container">
+        <h2>Enter Employee Information</h2>
+        <form method="POST" action="/predict" class="prediction-form" id="predictionForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="avg_working_hours">Average Working Hours Per Day</label>
+                    <input type="number" 
+                           id="avg_working_hours"
+                           name="avg_working_hours" 
+                           step="0.1" 
+                           min="0" 
+                           max="24" 
+                           value="{{ input_data.Avg_Working_Hours_Per_Day if input_data else '8.0' }}" 
+                           required>
+                    <small>Enter hours (0-24)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="work_from">Work From</label>
+                    <select id="work_from" name="work_from" required>
+                        <option value="">Select work location...</option>
+                        {% for option in work_from_options %}
+                        <option value="{{ option }}" 
+                                {% if input_data and input_data.Work_From == option %}selected{% endif %}>
+                            {{ option }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group slider-group">
+                    <label for="work_pressure">Work Pressure: <output id="work_pressure_value">{{ input_data.Work_Pressure if input_data else 3 }}</output></label>
+                    <input type="range" 
+                           id="work_pressure"
+                           name="work_pressure" 
+                           min="1" 
+                           max="5" 
+                           value="{{ input_data.Work_Pressure if input_data else 3 }}" 
+                           required>
+                    <div class="slider-labels">
+                        <span>1 (Low)</span>
+                        <span>5 (High)</span>
+                    </div>
+                </div>
+                
+                <div class="form-group slider-group">
+                    <label for="manager_support">Manager Support: <output id="manager_support_value">{{ input_data.Manager_Support if input_data else 3 }}</output></label>
+                    <input type="range" 
+                           id="manager_support"
+                           name="manager_support" 
+                           min="1" 
+                           max="5" 
+                           value="{{ input_data.Manager_Support if input_data else 3 }}" 
+                           required>
+                    <div class="slider-labels">
+                        <span>1 (Low)</span>
+                        <span>5 (High)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group slider-group">
+                    <label for="sleeping_habit">Sleeping Habit: <output id="sleeping_habit_value">{{ input_data.Sleeping_Habit if input_data else 3 }}</output></label>
+                    <input type="range" 
+                           id="sleeping_habit"
+                           name="sleeping_habit" 
+                           min="1" 
+                           max="5" 
+                           value="{{ input_data.Sleeping_Habit if input_data else 3 }}" 
+                           required>
+                    <div class="slider-labels">
+                        <span>1 (Poor)</span>
+                        <span>5 (Excellent)</span>
+                    </div>
+                </div>
+                
+                <div class="form-group slider-group">
+                    <label for="exercise_habit">Exercise Habit: <output id="exercise_habit_value">{{ input_data.Exercise_Habit if input_data else 3 }}</output></label>
+                    <input type="range" 
+                           id="exercise_habit"
+                           name="exercise_habit" 
+                           min="1" 
+                           max="5" 
+                           value="{{ input_data.Exercise_Habit if input_data else 3 }}" 
+                           required>
+                    <div class="slider-labels">
+                        <span>1 (Rarely)</span>
+                        <span>5 (Regularly)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group slider-group">
+                    <label for="job_satisfaction">Job Satisfaction: <output id="job_satisfaction_value">{{ input_data.Job_Satisfaction if input_data else 3 }}</output></label>
+                    <input type="range" 
+                           id="job_satisfaction"
+                           name="job_satisfaction" 
+                           min="1" 
+                           max="5" 
+                           value="{{ input_data.Job_Satisfaction if input_data else 3 }}" 
+                           required>
+                    <div class="slider-labels">
+                        <span>1 (Low)</span>
+                        <span>5 (High)</span>
+                    </div>
+                </div>
+                
+                <div class="form-group slider-group">
+                    <label for="social_person">Social Person: <output id="social_person_value">{{ input_data.Social_Person if input_data else 3 }}</output></label>
+                    <input type="range" 
+                           id="social_person"
+                           name="social_person" 
+                           min="1" 
+                           max="5" 
+                           value="{{ input_data.Social_Person if input_data else 3 }}" 
+                           required>
+                    <div class="slider-labels">
+                        <span>1 (Introverted)</span>
+                        <span>5 (Very Social)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="work_life_balance">Work-Life Balance</label>
+                    <select id="work_life_balance" name="work_life_balance" required>
+                        <option value="">Select...</option>
+                        {% for option in work_life_balance_options %}
+                        <option value="{{ option }}" 
+                                {% if input_data and input_data.Work_Life_Balance == option %}selected{% endif %}>
+                            {{ option }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="lives_with_family">Lives With Family</label>
+                    <select id="lives_with_family" name="lives_with_family" required>
+                        <option value="">Select...</option>
+                        {% for option in lives_with_family_options %}
+                        <option value="{{ option }}" 
+                                {% if input_data and input_data.Lives_With_Family == option %}selected{% endif %}>
+                            {{ option }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="working_state">Working State</label>
+                <select id="working_state" name="working_state" required>
+                    <option value="">Select state...</option>
+                    {% for option in working_state_options %}
+                    <option value="{{ option }}" 
+                            {% if input_data and input_data.Working_State == option %}selected{% endif %}>
+                        {{ option }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <button type="submit" class="btn-primary">Predict Stress Level</button>
+        </form>
+    </div>
+</div>
+
+<script>
+// Update slider value displays
+document.querySelectorAll('input[type="range"]').forEach(slider => {
+    const outputId = slider.id + '_value';
+    const output = document.getElementById(outputId);
+    if (output) {
+        slider.addEventListener('input', function() {
+            output.textContent = this.value;
+        });
+    }
+});
+</script>
+{% endblock %}
+
