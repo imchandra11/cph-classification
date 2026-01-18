@@ -5,7 +5,7 @@ This package provides a config-driven classification training framework that can
 used for any tabular classification problem by simply providing a YAML configuration file.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "chandra"
 __email__ = "chandra385123@gmail.com"
 

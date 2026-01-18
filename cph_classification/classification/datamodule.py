@@ -17,7 +17,7 @@ import joblib
 import lightning as L
 from torch.utils.data import DataLoader
 
-from cph_classification.classification.dataset import ClassificationDataset
+from Classification.dataset import ClassificationDataset
 
 
 class DataModuleCLS(L.LightningDataModule):
@@ -112,6 +112,8 @@ class DataModuleCLS(L.LightningDataModule):
         self.preprocessor: Optional[ColumnTransformer] = None
         self.input_dim: Optional[int] = None
         self.num_classes: Optional[int] = None
+        self.label_encoder = None  # Will be set during setup if target is categorical or non-0-indexed
+        self.class_names: Optional[list[str]] = None  # Will be set during setup
         self.train_dataset: Optional[ClassificationDataset] = None
         self.val_dataset: Optional[ClassificationDataset] = None
         self.test_dataset: Optional[ClassificationDataset] = None
@@ -144,6 +146,9 @@ class DataModuleCLS(L.LightningDataModule):
         target_values = df[self.target_col].values
         target_is_categorical = not np.issubdtype(target_values.dtype, np.integer)
         
+        # Track if we encoded from categorical (to avoid overwriting label_encoder later)
+        was_categorical_encoded = False
+        
         if target_is_categorical:
             # Target is categorical (strings), need to encode to integers
             from sklearn.preprocessing import LabelEncoder
@@ -154,6 +159,18 @@ class DataModuleCLS(L.LightningDataModule):
             
             # Get class names for reference (original labels)
             self.class_names = self.label_encoder.classes_.tolist()
+            
+            # Mark that we encoded from categorical
+            was_categorical_encoded = True
+            
+            # IMPORTANT: Verify label_encoder was created successfully
+            assert self.label_encoder is not None, "Label encoder should not be None after creation"
+            assert len(self.class_names) > 0, "Class names should not be empty"
+            
+            # Debug: Log that label encoder was created for categorical
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Created label_encoder for categorical target. Classes: {self.class_names}")
             
         elif not np.issubdtype(target_values.dtype, np.integer):
             # Try to convert to integers if numeric but not integer
@@ -167,13 +184,15 @@ class DataModuleCLS(L.LightningDataModule):
                 )
         
         # Handle integer labels (either originally integers or converted above)
-        if np.issubdtype(df[self.target_col].dtype, np.integer):
+        # Skip if we already encoded from categorical (to preserve label_encoder)
+        if np.issubdtype(df[self.target_col].dtype, np.integer) and not was_categorical_encoded:
             # Already integers - check if they're 0-indexed
             unique_ints = sorted(df[self.target_col].unique())
             min_class = min(unique_ints)
             
-            # Store original class names before remapping
-            self.class_names = [str(c) for c in unique_ints]
+            # Store original class names before remapping (only if not already set)
+            if not hasattr(self, 'class_names') or self.class_names is None:
+                self.class_names = [str(c) for c in unique_ints]
             
             if min_class != 0:
                 # Labels are not 0-indexed, need to remap to 0-indexed
@@ -187,7 +206,9 @@ class DataModuleCLS(L.LightningDataModule):
                 df[self.target_col] = self.label_encoder.transform(df[self.target_col])
             else:
                 # Already 0-indexed, no remapping needed
-                self.label_encoder = None
+                # Only set to None if label_encoder was not already created
+                if not hasattr(self, 'label_encoder'):
+                    self.label_encoder = None
         
         # Detect number of classes from all data (after encoding)
         unique_classes = sorted(df[self.target_col].unique())
@@ -248,16 +269,34 @@ class DataModuleCLS(L.LightningDataModule):
             transformed = self.preprocessor.transform(sample_features)
             self.input_dim = transformed.shape[1]
             
-            # Save preprocessor if requested
+            # Save preprocessor and label encoder if requested
+            # IMPORTANT: Save label_encoder immediately after creating preprocessor if it was just created
             if self.save_preprocessor and self.preprocessor_path:
                 preprocessor_dir = Path(self.preprocessor_path).parent
                 preprocessor_dir.mkdir(parents=True, exist_ok=True)
                 joblib.dump(self.preprocessor, self.preprocessor_path)
                 
-                # Save label encoder if target was categorical
+                # Save label encoder if it exists (for categorical targets or non-0-indexed integer targets)
+                # CRITICAL: Check if label_encoder exists and save it immediately
                 if hasattr(self, 'label_encoder') and self.label_encoder is not None:
                     label_encoder_path = preprocessor_dir / "label_encoder.joblib"
-                    joblib.dump(self.label_encoder, label_encoder_path)
+                    try:
+                        joblib.dump(self.label_encoder, label_encoder_path)
+                        # Debug: Log that label encoder was saved
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.info(f"✓ Saved label_encoder to {label_encoder_path}")
+                        if hasattr(self, 'class_names') and self.class_names:
+                            logger.debug(f"Label encoder classes: {self.class_names}")
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Failed to save label_encoder: {e}")
+                else:
+                    # Debug: Log why label encoder was not saved
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Label encoder not saved: hasattr={hasattr(self, 'label_encoder')}, value={getattr(self, 'label_encoder', 'N/A')}, Target: {self.target_col}")
         
         # Load preprocessor if not fitted
         if self.preprocessor is None and self.preprocessor_path and Path(self.preprocessor_path).exists():
