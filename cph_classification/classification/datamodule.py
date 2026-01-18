@@ -14,10 +14,13 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 import joblib
+import logging
 import lightning as L
 from torch.utils.data import DataLoader
 
-from Classification.dataset import ClassificationDataset
+from cph_classification.classification.dataset import ClassificationDataset
+
+logger = logging.getLogger(__name__)
 
 
 class DataModuleCLS(L.LightningDataModule):
@@ -168,8 +171,6 @@ class DataModuleCLS(L.LightningDataModule):
             assert len(self.class_names) > 0, "Class names should not be empty"
             
             # Debug: Log that label encoder was created for categorical
-            import logging
-            logger = logging.getLogger(__name__)
             logger.info(f"Created label_encoder for categorical target. Classes: {self.class_names}")
             
         elif not np.issubdtype(target_values.dtype, np.integer):
@@ -283,19 +284,13 @@ class DataModuleCLS(L.LightningDataModule):
                     try:
                         joblib.dump(self.label_encoder, label_encoder_path)
                         # Debug: Log that label encoder was saved
-                        import logging
-                        logger = logging.getLogger(__name__)
                         logger.info(f"✓ Saved label_encoder to {label_encoder_path}")
                         if hasattr(self, 'class_names') and self.class_names:
                             logger.debug(f"Label encoder classes: {self.class_names}")
                     except Exception as e:
-                        import logging
-                        logger = logging.getLogger(__name__)
                         logger.error(f"Failed to save label_encoder: {e}")
                 else:
                     # Debug: Log why label encoder was not saved
-                    import logging
-                    logger = logging.getLogger(__name__)
                     logger.warning(f"Label encoder not saved: hasattr={hasattr(self, 'label_encoder')}, value={getattr(self, 'label_encoder', 'N/A')}, Target: {self.target_col}")
         
         # Load preprocessor if not fitted
